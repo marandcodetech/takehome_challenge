@@ -1,5 +1,6 @@
 # Solutions to problem 1:
 Using the provided transaction_log.txt:
+
 File: transaction_log.txt
 {"order_id": "12345", "symbol": "AAPL", "quantity": 100, "price": 142.50, "side": "buy", "timestamp": "2025-02-18T09:15:30Z"}
 {"order_id": "12346", "symbol": "TSLA", "quantity": 50, "price": 890.15, "side": "sell", "timestamp": "2025-02-18T09:16:10Z"}
@@ -23,7 +24,9 @@ File: transaction_log.txt
 {"order_id": "12364", "symbol": "NFLX", "quantity": 40, "price": 648.50, "side": "sell", "timestamp": "2025-02-18T09:30:00Z"}
 
 
+
 Then followed by using this command/CLI in Ubuntu Linux 24.04 (WSL):
+
 
 marioand78@LINUXDEVICE01:~$  jq -c 'select(.symbol=="TSLA" and .side=="sell")' transaction_log.txt | while read -r obj; do
     id=$(echo "$obj" | jq -r '.order_id')
@@ -34,7 +37,9 @@ marioand78@LINUXDEVICE01:~$  jq -c 'select(.symbol=="TSLA" and .side=="sell")' t
   done > output.txt
   
 
+
 then here is this result (output.txt):
+
 
 === REQUEST FOR ORDER 12346 ===
 Transaction record: {"order_id":"12346","symbol":"TSLA","quantity":50,"price":890.15,"side":"sell","timestamp":"2025-02-18T09:16:10Z"}
