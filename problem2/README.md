@@ -2,11 +2,11 @@
 
 First case (500 requests/sec, p99 < 100ms):
 In regards to the cloud infra architecture to provision for the bitcoin trading platforms (which are similar to Binance trading platform), the diagram shown below should be sufficient to accommodate this requirement:
->> please refer to architecture images 1st_case.jpg <<
 
-For the first case![1st_case](https://github.com/user-attachments/assets/9833c365-5a14-48e9-9f19-5d6f2d6c3511), 
-described below is the infrastructure description:
+For the first case described below is the infrastructure description:
 (as technical assumption, all AWS resources shall be provisioned in the AWS Singapore region)
+
+![1st_case](https://github.com/user-attachments/assets/9833c365-5a14-48e9-9f19-5d6f2d6c3511), 
 
 Incoming requests from either users or external systems will reach the AWS Route 53
 AWS Route 53 is the DNS manager. With proper configuration, it can yield user-friendly domain names that can be invoked in a comfortable manner by users or external systems.
@@ -25,9 +25,10 @@ The DynamoDB database is intentionally provisioned to store any trading computat
 Second case (more and more requests coming in):
 In regards to the cloud infra architecture to provision for the bitcoin trading platforms (which are similar to Binance trading platform), the diagram shown below should be sufficient to accommodate this further requirement:
 
-For the secon![2nd_case](https://github.com/user-attachments/assets/88a8224a-ae1f-4064-8f67-c0d7e2030a3e)
-d case, described below is the infrastructure description:
+For the second case, described below is the infrastructure description:
 (again, as technical assumption, all AWS resources shall be provisioned in the AWS Singapore region)
+
+![2nd_case](https://github.com/user-attachments/assets/88a8224a-ae1f-4064-8f67-c0d7e2030a3e)
 
 Incoming requests from either users or external systems will reach the AWS Route 53
 AWS Route 53 is the DNS manager. With proper configuration, it can yield user-friendly domain names that can be invoked in a comfortable manner by users or external systems.
