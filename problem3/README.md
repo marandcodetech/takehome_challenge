@@ -1,117 +1,288 @@
 # Solution for problem no.3:
 
-**Diagnosis:**
-To diagnose, there are several steps that can be performed:
-Confirm it’s actually disk problem (not inode exhaustion):
+
+# Disk Full Diagnosis and Recovery (Nginx VM)
+
+## Diagnosis
+
+To diagnose the issue, follow these steps.
+
+### 1. Confirm the Problem Is Disk Space (Not Inode Exhaustion)
+
 Run the following commands:
-$ df -h; this will check space usage.
-$ df -i; this will check inode usage.
-		If df -h is high, the problem is most likely caused by large files.
-		If df -i is high, there are too many small files.
 
-Find which folder consumes the most space, run these commands:
+```bash
+df -h
+```
+
+Checks disk space usage.
+
+```bash
+df -i
+```
+
+Checks inode usage.
+
+Interpretation:
+
+- If `df -h` is high → the problem is most likely **large files**.
+- If `df -i` is high → the problem is **too many small files**.
+
+---
+
+### 2. Identify Which Folder Consumes the Most Space
+
+Run:
+
+```bash
 sudo du -xhd1 / | sort -h
-This will show all folders sizes in a sorted way.
+```
+
+Shows folder sizes from the root filesystem.
+
+For Nginx VMs specifically check `/var`:
+
+```bash
 sudo du -xhd1 /var | sort -h
-This will show all /var folders sizes in a sorted way which is specific for Nginx VM.
+```
 
-**Probable Causes:**
-Log files exploded (most common):
-Check using the following command:
+---
+
+# Probable Causes
+
+## 1. Log Files Exploded (Most Common)
+
+Check Nginx logs:
+
+```bash
 ls -lh /var/log/nginx/
-We may see several logs files with large sizes. Then we may determine this as the probable cause.
+```
 
-**Recovery:**
-Compress the necessary log files first using this command:
+Large `access.log` or `error.log` files indicate this is the cause.
+
+### Recovery
+
+Compress existing logs:
+
+```bash
 sudo gzip /var/log/nginx/access.log
-Then followed by truncating it:
-sudo truncate -s 0 /var/log/nginx/access.log
-It is much better to send logs to CloudWatch or ElasticSearch stacks (ElasticSearch, Logstash, Kibana/ELK)
+```
 
-**Core dumps from crashes**
-This is mostly caused by nginx repeatedly crashing.
-Check using the following command:
+Then truncate the file:
+
+```bash
+sudo truncate -s 0 /var/log/nginx/access.log
+```
+
+**Recommended long-term solution**
+
+Send logs to centralized logging systems:
+
+- CloudWatch
+- ElasticSearch / Logstash / Kibana (ELK stack)
+
+---
+
+## 2. Core Dumps From Crashes
+
+Usually caused by repeated Nginx crashes.
+
+Check for core dumps:
+
+```bash
 ls -lh /var/lib/systemd/coredump/
-If there are several files with size 2GB or more, this is the probable cause. The impacts:
-I. Indicates crashes
-Ii. Possible upstream or OS instability
-Iii. Potential memory corruption or misconfigurations
-		
-**Recovery:**
-Remove core dumps.
-Disable or limit core dumps.
-Investigate why it crashed.
+```
 
-**Log floods from 502/504 errors**
-If upstream services are failing, NGINX logs every 502/504.
+If files of **2GB or larger** exist, this may be the cause.
 
-**Possible causes:**
-Upstream cluster down
-Health check failing
-Misconfigured DNS
-Certificate mismatch
+### Impact
 
-**Recovery:**
-Fix upstream
-Reduce error logging
-Rate-limit abusive traffic
-Add WAF rules if bots involved
-Attack scenarios
-Consider malicious traffic:
-Bots attacks
-DDoS generating huge logs
-Random IPs hitting nonexistent endpoints
-Disk explodes because:
-Every request gets logged
-404 storm
-Recovery:
-Enable rate limiting
-Use Cloudflare / WAF
-Disable logging for static 404s
-Block bad IP ranges
+- Indicates service crashes
+- Possible upstream or OS instability
+- Potential memory corruption or configuration issues
 
-**Immediate Emergency Rescue:**
-Stop nginx service immediately
-Delete largest logs
-Restart nginx
+### Recovery
 
+- Remove core dump files
+- Disable or limit core dump generation
+- Investigate root cause of the crashes
 
-**The most common scenarios:**
-Log files exploded (most common)
+---
 
-**Recovery:**
-Check logrotate configurations:
+## 3. Log Floods From 502 / 504 Errors
+
+If upstream services fail, NGINX logs every error request.
+
+Possible causes:
+
+- Upstream cluster down
+- Health checks failing
+- Misconfigured DNS
+- Certificate mismatch
+
+### Recovery
+
+- Fix upstream services
+- Reduce error logging
+- Rate-limit abusive traffic
+- Add WAF protection if bots are involved
+
+---
+
+## 4. Attack Scenarios
+
+Malicious traffic may generate massive logs.
+
+Examples:
+
+- Bot attacks
+- DDoS traffic
+- Random IPs hitting nonexistent endpoints
+
+This causes disk exhaustion because:
+
+- Every request is logged
+- Massive numbers of `404` responses
+
+### Recovery
+
+- Enable rate limiting
+- Use Cloudflare or another WAF
+- Disable logging for static 404 errors
+- Block suspicious IP ranges
+
+---
+
+# Immediate Emergency Rescue
+
+If disk is completely full:
+
+1. Stop Nginx
+
+```bash
+sudo systemctl stop nginx
+```
+
+2. Delete the largest logs
+
+3. Restart Nginx
+
+```bash
+sudo systemctl start nginx
+```
+
+---
+
+# Most Common Scenario: Log Explosion
+
+Check **logrotate configuration**:
+
+```bash
 cat /etc/logrotate.d/nginx
-This will show the logs rotations configurations.
-Check excessive log level:
+```
+
+This file defines automatic log rotation.
+
+Check excessive logging level:
+
+```bash
 grep error_log /etc/nginx/nginx.conf
-If it shows something “debug”,  then this is problematic in production. All debugging activities get logged which causes the logs to explode.
+```
 
-**Cyberattacks scenarios**
-**Mitigations:**
-Check using this command:
+If it shows:
+
+```
+debug
+```
+
+This is problematic in production because **all debugging activity gets logged**, rapidly increasing disk usage.
+
+---
+
+# Cyberattack Scenario Diagnosis
+
+Check the latest log entries:
+
+```bash
 sudo tail -100 /var/log/nginx/access.log
+```
 
-**Things to look for:**
-Simultaneous thousands of requests from the same IP.
-Random URL scanning:
-/wp-admin, /phpmyadmin, /admin, /cgi-bin
-Extremely high request rate
+Look for:
 
-**Check frequency:**
-sudo awk '{print $1}' /var/nginx/log/access.log | sort | uniq -c | sort -nr | head
-This command shows top IPs. If one IP was found to hit up to a million times, then this is the primary suspect.
+- Thousands of requests from the same IP
+- Random endpoint scans
 
-**Recovery:**
-Truncate logs to regain disk size: 
+Example patterns:
+
+```
+/wp-admin
+/phpmyadmin
+/admin
+/cgi-bin
+```
+
+- Extremely high request rates
+
+---
+
+### Identify Top Requesting IPs
+
+Run:
+
+```bash
+sudo awk '{print $1}' /var/log/nginx/access.log | sort | uniq -c | sort -nr | head
+```
+
+This shows the **top IP addresses generating traffic**.
+
+If one IP appears **hundreds of thousands or millions of times**, it is likely the attacker.
+
+---
+
+# Cyberattack Recovery
+
+### 1. Truncate Logs to Recover Disk Space
+
+```bash
 sudo truncate -s 0 /var/log/nginx/access.log
-Identify attacker IPs and block temporarily:
-sudo iptables -A INPUT -s <ip> -j DROP
-Can be done using ufw command:
-sudo ufw deny from <ip>
-Enable rate limiting in nginx:
-limit_req_zone $binary_remote_addr zone=one:10m rate=10r/s;
-Then followed by:
-limit_req zone=one burst=20 nodelay;
-Put protection upstream, for example: put Cloudflare WAF in front of this Nginx VM.
+```
 
+---
+
+### 2. Block Attacker IPs
+
+Using iptables:
+
+```bash
+sudo iptables -A INPUT -s <ip> -j DROP
+```
+
+Using UFW:
+
+```bash
+sudo ufw deny from <ip>
+```
+
+---
+
+### 3. Enable Rate Limiting in Nginx
+
+```nginx
+limit_req_zone $binary_remote_addr zone=one:10m rate=10r/s;
+```
+
+Then apply:
+
+```nginx
+limit_req zone=one burst=20 nodelay;
+```
+
+---
+
+### 4. Add Upstream Protection
+
+Place a protection layer in front of the Nginx VM, for example:
+
+- Cloudflare WAF
+- CDN-based rate limiting
+- DDoS protection services
