@@ -1,4 +1,4 @@
-# Solution to problem 2:
+# Solution for problem no.2
 
 First case (500 requests/sec, p99 < 100ms):
 In regards to the cloud infra architecture to provision for the bitcoin trading platforms (which are similar to Binance trading platform), the diagram shown below should be sufficient to accommodate this requirement:
