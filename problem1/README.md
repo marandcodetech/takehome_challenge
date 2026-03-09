@@ -1,4 +1,4 @@
-# Solutions to problem 1:
+# Solution for problem no.1
 Using the provided transaction_log.txt:
 
 File: transaction_log.txt
